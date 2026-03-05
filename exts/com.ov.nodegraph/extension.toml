@@ -1,0 +1,10 @@
+[package]
+version = "0.1.0"
+title = "Orbit Node Graph"
+description = "Visual node graph of orbital body relationships."
+authors = ["SLI"]
+category = "Simulation"
+keywords = ["isaac-sim", "orbit", "nodegraph"]
+
+[[python.module]]
+name = "com.ov.nodegraph"
