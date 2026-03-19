@@ -6,8 +6,9 @@ from com.ov.core.service import OrbitService
 # ── appearance ────────────────────────────────────────────────────
 BODY_R       = 14
 ATTRACTOR_R  = 24
-TOOLTIP_W    = 240
-TOOLTIP_H    = 160
+TOOLTIP_W    = 280
+TOOLTIP_H    = 200
+SIDEBAR_W = 900
 ORBIT_ASPECT = 0.55      # ry = rx * aspect
 MIN_RX       = 60        # minimum orbit ring rx in px
 MAX_RX_FRAC  = 0.44      # max rx as fraction of half canvas width
@@ -113,6 +114,8 @@ class NodeGraphUI:
         self._body_layer:  ui.ZStack | None = None
         self._tooltip:     ui.ZStack | None = None
         self._tt_label:    ui.Label  | None = None
+        self._sidebar:     ui.Frame  | None = None
+
         self._build_window()
 
     def _build_window(self):
@@ -125,10 +128,8 @@ class NodeGraphUI:
                     ui.Rectangle(style={"background_color": COL_BG})
                     self._orbit_layer = ui.ZStack()
                     self._body_layer  = ui.ZStack()
-                    self._tooltip = ui.ZStack(
-                        width=TOOLTIP_W, height=TOOLTIP_H, visible=False,
-                    )
-                    with self._tooltip:
+                with ui.Placer(offset_x=8, offset_y=8):
+                    with ui.ZStack(width=SIDEBAR_W, height=56):
                         ui.Rectangle(style={
                             "background_color": COL_TOOLTIP_BG,
                             "border_width": 1,
@@ -137,9 +138,12 @@ class NodeGraphUI:
                         })
                         with ui.VStack(style={"margin": 10}):
                             self._tt_label = ui.Label(
-                                "", word_wrap=True,
-                                style={"color": COL_TEXT, "font_size": 12},
+                                "Hover a body...",
+                                word_wrap=False,
+                                alignment=ui.Alignment.LEFT_TOP,
+                                style={"color": COL_TEXT, "font_size": 13},
                             )
+
         self.refresh()
 
     def refresh(self):
@@ -251,25 +255,11 @@ class NodeGraphUI:
                         style={"background_color": 0x00000000, "border_width": 0},
                     )
 
-                    def _on_hover(hovered, _tt=tooltip_text, _cx=cx, _cy=cy,
-                                  _r=r, _cw=canvas_w, _ch=canvas_h):
-                        if not self._tooltip or not self._tt_label:
+                    def _on_hover(hovered, _tt=tooltip_text):
+                        if not self._tt_label:
                             return
-                        if hovered:
-                            tx = int(_cx + _r + 10)
-                            ty = int(_cy - TOOLTIP_H / 2)
-                            if tx + TOOLTIP_W > _cw:
-                                tx = int(_cx - _r - TOOLTIP_W - 10)
-                            ty = max(4, min(ty, int(_ch - TOOLTIP_H - 4)))
-                            try:
-                                self._tooltip.offset_x = tx
-                                self._tooltip.offset_y = ty
-                            except Exception:
-                                pass
-                            self._tt_label.text   = _tt
-                            self._tooltip.visible = True
-                        else:
-                            self._tooltip.visible = False
+                        self._tt_label.text = _tt if hovered else "Hover a body..."
+                                        
 
                     hover.set_mouse_hovered_fn(_on_hover)
 
@@ -279,12 +269,12 @@ class NodeGraphUI:
         body  = self._svc.get_body(path)
         short = path.rsplit("/", 1)[-1]
         if body is None:
-            return f"{short}\nType : Attractor (static)\nNot a registered orbit body"
+            return f"{short}Type : Attractor (static) Not a registered orbit body"
         r, v  = body.r, body.v
         rmag  = math.sqrt(r[0]**2 + r[1]**2 + r[2]**2)
         vmag  = math.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
         attr  = body.attractor_path.rsplit("/", 1)[-1]
-        lines = [
+        parts = [
             f"{short}",
             f"Orbits  : {attr}",
             f"Mode    : {body.control_mode}",
@@ -294,10 +284,12 @@ class NodeGraphUI:
             f"dt_sim  : {body.dt_sim:.4f}",
         ]
         if body.control_mode == "pd":
-            lines.append(f"Kp={body.kp}  Kd={body.kd}  amax={body.a_max}")
-        return "\n".join(lines)
+            parts.append(f"Kp={body.kp}  Kd={body.kd}  amax={body.a_max}")
+        return "   ".join(parts)
 
     def destroy(self):
         if self._win:
             self._win.visible = False
             self._win = None
+        self._sidebar = None
+        self._tt_label = None
